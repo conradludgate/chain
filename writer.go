@@ -49,7 +49,7 @@ func (wc *WriterBuilder) WritingTo(w io.Writer) (io.WriteCloser, error) {
 	var close closeStack = nil
 
 	if wc, ok := w.(io.WriteCloser); ok {
-		close = append(close, wc.Close)
+		close = append(close, wc)
 	}
 
 	for i := len(wc.wcs) - 1; i >= 0; i-- {
@@ -61,7 +61,7 @@ func (wc *WriterBuilder) WritingTo(w io.Writer) (io.WriteCloser, error) {
 		}
 
 		if wc, ok := w.(io.WriteCloser); ok {
-			close = append(close, wc.Close)
+			close = append(close, wc)
 		}
 	}
 

@@ -28,7 +28,7 @@ type ReadChain func(io.Reader) (io.Reader, error)
 func ReadingFrom(r io.Reader) *ReaderBuilder {
 	var close closeStack
 	if rc, ok := r.(io.ReadCloser); ok {
-		close = append(close, rc.Close)
+		close = append(close, rc)
 	}
 
 	return &ReaderBuilder{r: reader{Reader: r, closeStack: close}}
@@ -39,8 +39,11 @@ func (chain *ReaderBuilder) Then(next ReadChain) *ReaderBuilder {
 	if chain.err == nil {
 		chain.r.Reader, chain.err = next(chain.r.Reader)
 		if rc, ok := chain.r.Reader.(io.ReadCloser); ok {
-			chain.r.closeStack = append(chain.r.closeStack, rc.Close)
+			chain.r.closeStack = append(chain.r.closeStack, rc)
 		}
+	}
+	if chain.err != nil {
+		chain.r.closeStack.Close()
 	}
 	return chain
 }
