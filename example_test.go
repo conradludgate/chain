@@ -58,16 +58,14 @@ func ExampleWriterBuilder_IntoFS() {
 	w.Close()
 	wfs.Close()
 
-	rfs, _ := chain.ReadingFrom(output).
+	r, _ := chain.ReadingFrom(output).
 		AsFS(zip.FSReader).
+		Open("hello.txt").
 		Finally(aes.Decrypt)
-
-	r, _ := rfs.Open("hello.txt")
 
 	b, _ := io.ReadAll(r)
 
 	r.Close()
-	rfs.Close()
 
 	fmt.Println(string(b))
 	// Output: hello world
@@ -85,6 +83,20 @@ func ExampleReaderBuilder_AsFS() {
 	defer fs.Close()
 
 	r, _ := fs.Open("hello.txt")
+	defer r.Close()
+	io.Copy(os.Stdout, r)
+}
+
+func ExampleReaderFSBuilder_Open() {
+	zip := archive.ZipConfig{}
+	b64 := encoding.Base64Config{Encoding: base64.RawStdEncoding}
+
+	r, _ := chain.ReadingFromFS(chain.OS{RootDir: "./example"}).
+		Open("archive.zip").
+		AsFS(zip.FSReader).
+		Open("hello.txt").
+		Finally(b64.Decode)
+
 	defer r.Close()
 	io.Copy(os.Stdout, r)
 }
