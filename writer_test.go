@@ -14,7 +14,9 @@ func TestWriterChainA(t *testing.T) {
 	output := bytes.NewBuffer(nil)
 	input := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-	chainW, err := chain.NewWriteBuilder(RemoveABC).Then(ToLower).WritingTo(output)
+	chainW, err := chain.NewWriteBuilder(RemoveABC).
+		Then(ToLower).
+		WritingTo(chain.NopWriteCloser{Writer: output})
 	require.Nil(t, err)
 
 	n, err := io.WriteString(chainW, input)
@@ -28,7 +30,9 @@ func TestWriterChainB(t *testing.T) {
 	output := bytes.NewBuffer(nil)
 	input := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-	chainW, err := chain.NewWriteBuilder(ToLower).Then(RemoveABC).WritingTo(output)
+	chainW, err := chain.NewWriteBuilder(ToLower).
+		Then(RemoveABC).
+		WritingTo(chain.NopWriteCloser{Writer: output})
 	require.Nil(t, err)
 
 	n, err := io.WriteString(chainW, input)
@@ -38,11 +42,11 @@ func TestWriterChainB(t *testing.T) {
 	assert.Equal(t, "abcdefghijklmnopqrstuvwxyz", output.String())
 }
 
-func RemoveABC(w io.Writer) (io.Writer, error) {
+func RemoveABC(w io.WriteCloser) (io.WriteCloser, error) {
 	return removeABC{w}, nil
 }
 
-type removeABC struct{ io.Writer }
+type removeABC struct{ io.WriteCloser }
 
 func (r removeABC) Write(p []byte) (n int, err error) {
 	q := make([]byte, len(p))
@@ -52,14 +56,14 @@ func (r removeABC) Write(p []byte) (n int, err error) {
 			q[i] = '.'
 		}
 	}
-	return r.Writer.Write(q)
+	return r.WriteCloser.Write(q)
 }
 
-func ToLower(w io.Writer) (io.Writer, error) {
+func ToLower(w io.WriteCloser) (io.WriteCloser, error) {
 	return toLower{w}, nil
 }
 
-type toLower struct{ io.Writer }
+type toLower struct{ io.WriteCloser }
 
 func (r toLower) Write(p []byte) (n int, err error) {
 	q := make([]byte, len(p))
@@ -69,5 +73,5 @@ func (r toLower) Write(p []byte) (n int, err error) {
 			q[i] = v - 'A' + 'a'
 		}
 	}
-	return r.Writer.Write(q)
+	return r.WriteCloser.Write(q)
 }

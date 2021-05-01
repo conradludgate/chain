@@ -4,6 +4,8 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"io"
+
+	"github.com/conradludgate/chain"
 )
 
 type AESConfig struct {
@@ -21,12 +23,15 @@ func (cfg AESConfig) Stream() (cipher.Stream, error) {
 	return cipher.NewOFB(block, iv[:]), nil
 }
 
-func (cfg AESConfig) Encrypt(w io.Writer) (io.Writer, error) {
+func (cfg AESConfig) Encrypt(w io.WriteCloser) (io.WriteCloser, error) {
 	s, err := cfg.Stream()
 	return cipher.StreamWriter{S: s, W: w}, err
 }
 
-func (cfg AESConfig) Decrypt(r io.Reader) (io.Reader, error) {
+func (cfg AESConfig) Decrypt(r io.ReadCloser) (io.ReadCloser, error) {
 	s, err := cfg.Stream()
-	return cipher.StreamReader{S: s, R: r}, err
+	return chain.ReadCloser{
+		Reader: cipher.StreamReader{S: s, R: r},
+		Closer: r,
+	}, err
 }

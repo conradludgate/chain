@@ -7,7 +7,7 @@ import (
 // ReaderBuilder lets you build a chain of io.Readers
 // in a more natural way
 type ReaderBuilder struct {
-	r   reader
+	r   io.ReadCloser
 	err error
 }
 
@@ -18,39 +18,29 @@ type ReaderBuilder struct {
 // While this type only expects an io.Reader to be returned, it will
 // detect if the result is a Closer and make sure the
 // types Close function is run.
-type ReadChain func(io.Reader) (io.Reader, error)
+type ReadChain func(io.ReadCloser) (io.ReadCloser, error)
 
 // ReadingFrom creates a new ReaderBuilder where the
 // contents of the chain comes from the given io.Reader
 //
 // If r is an io.ReadCloser, the resulting Reader
 // after building the chain will call r.Close for you
-func ReadingFrom(r io.Reader) *ReaderBuilder {
-	var close closeStack
-	if rc, ok := r.(io.ReadCloser); ok {
-		close = append(close, rc)
-	}
-
-	return &ReaderBuilder{r: reader{Reader: r, closeStack: close}}
+func ReadingFrom(r io.ReadCloser) *ReaderBuilder {
+	return &ReaderBuilder{r: r}
 }
 
 // Then adds the next ReadChain to the current builder chain
 func (chain *ReaderBuilder) Then(next ReadChain) *ReaderBuilder {
 	if chain.err == nil {
-		chain.r.Reader, chain.err = next(chain.r.Reader)
-		if rc, ok := chain.r.Reader.(io.ReadCloser); ok {
-			chain.r.closeStack = append(chain.r.closeStack, rc)
+		r, err := next(chain.r)
+		if err != nil {
+			chain.r.Close()
+			chain.err = err
+		} else {
+			chain.r = r
 		}
 	}
-	if chain.err != nil {
-		chain.r.closeStack.Close()
-	}
 	return chain
-}
-
-type reader struct {
-	io.Reader
-	closeStack
 }
 
 // Finally adds the last ReadChain to the current builder chain,
@@ -60,7 +50,7 @@ func (chain *ReaderBuilder) Finally(next ReadChain) (io.ReadCloser, error) {
 	return chain.r, chain.err
 }
 
-type ReadFSChain func(io.Reader) (ReadFS, error)
+type ReadFSChain func(io.ReadCloser) (ReadFS, error)
 type ReaderFSBuilder struct {
 	first *ReaderBuilder
 	fs    ReadFSChain
@@ -69,8 +59,10 @@ type ReaderFSBuilder struct {
 
 func ReadingFromFS(fs ReadFS) *ReaderFSBuilder {
 	return &ReaderFSBuilder{
-		first: &ReaderBuilder{},
-		fs:    func(io.Reader) (ReadFS, error) { return fs, nil },
+		first: &ReaderBuilder{
+			r: io.NopCloser(nil),
+		},
+		fs:    func(io.ReadCloser) (ReadFS, error) { return fs, nil },
 		after: nil,
 	}
 }
@@ -93,9 +85,9 @@ func (chain *ReaderFSBuilder) Open(name string) *ReaderBuilder {
 		fs.Close()
 		return &ReaderBuilder{err: err}
 	}
-	return &ReaderBuilder{r: reader{
-		Reader:     r,
-		closeStack: closeStack{fs.fs, fs.Closer, r},
+	return &ReaderBuilder{r: ReadCloser2{
+		ReadCloser: r,
+		Closer:     fs.fs,
 	}}
 }
 
@@ -150,5 +142,24 @@ func (fs *readFS) Open(path string) (io.ReadCloser, error) {
 
 type ReadFS interface {
 	Open(path string) (io.ReadCloser, error)
+	io.Closer
+}
+
+type ReadCloser2 struct {
+	io.ReadCloser
+	Closer io.Closer
+}
+
+func (wc ReadCloser2) Close() error {
+	err1 := wc.ReadCloser.Close()
+	err2 := wc.Closer.Close()
+	if err1 != nil {
+		return err1
+	}
+	return err2
+}
+
+type ReadCloser struct {
+	io.Reader
 	io.Closer
 }

@@ -3,11 +3,13 @@ package chain_test
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/hex"
 	"io"
 	"testing"
 
 	"github.com/conradludgate/chain"
 	"github.com/conradludgate/chain/archive"
+	"github.com/conradludgate/chain/cipher"
 	"github.com/conradludgate/chain/encoding"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,4 +54,23 @@ func TestReadingFromFS_Open(t *testing.T) {
 	require.Nil(t, r.Close())
 
 	assert.Equal(t, "hello world\n", output.String())
+}
+
+func TestWritingToFS(t *testing.T) {
+	key, err := hex.DecodeString("6368616e676520746869732070617373")
+	require.Nil(t, err)
+	aes := cipher.AESConfig{Key: key}
+
+	wfs := chain.NewWriteBuilder(aes.Encrypt).
+		WritingToFS(chain.OS{RootDir: "."})
+
+	w, err := wfs.Create("hello.txt")
+	require.Nil(t, err)
+
+	_, err = io.WriteString(w, "hello world")
+	require.Nil(t, err)
+	err = w.Close()
+	require.Nil(t, err)
+	err = wfs.Close()
+	require.Nil(t, err)
 }

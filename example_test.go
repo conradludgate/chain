@@ -24,12 +24,12 @@ func ExampleNewWriteBuilder() {
 
 	w, _ := chain.NewWriteBuilder(aes.Encrypt).
 		Then(gzip.Compress).
-		WritingTo(output)
+		WritingTo(chain.NopWriteCloser{Writer: output})
 
 	io.WriteString(w, "hello world")
 	w.Close()
 
-	r, _ := chain.ReadingFrom(output).
+	r, _ := chain.ReadingFrom(io.NopCloser(output)).
 		Then(gzip.Decompress).
 		Finally(aes.Decrypt)
 
@@ -50,7 +50,7 @@ func ExampleWriterBuilder_IntoFS() {
 
 	wfs, _ := chain.NewWriteBuilder(aes.Encrypt).
 		IntoFS(zip.FSWriter).
-		WritingTo(output)
+		WritingTo(chain.NopWriteCloser{Writer: output})
 
 	w, _ := wfs.Create("hello.txt")
 
@@ -58,7 +58,7 @@ func ExampleWriterBuilder_IntoFS() {
 	w.Close()
 	wfs.Close()
 
-	r, _ := chain.ReadingFrom(output).
+	r, _ := chain.ReadingFrom(io.NopCloser(output)).
 		AsFS(zip.FSReader).
 		Open("hello.txt").
 		Finally(aes.Decrypt)

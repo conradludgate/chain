@@ -13,7 +13,9 @@ import (
 
 func TestReaderChainA(t *testing.T) {
 	input := "abcdefghijklmnopqrstuvwxyz"
-	chainR, err := chain.ReadingFrom(strings.NewReader(input)).Then(RemoveXYZ).Finally(ToUpper)
+	chainR, err := chain.ReadingFrom(io.NopCloser(strings.NewReader(input))).
+		Then(RemoveXYZ).
+		Finally(ToUpper)
 	require.Nil(t, err)
 	b, err := ioutil.ReadAll(chainR)
 	require.Nil(t, err)
@@ -23,7 +25,9 @@ func TestReaderChainA(t *testing.T) {
 
 func TestReaderChainB(t *testing.T) {
 	input := "abcdefghijklmnopqrstuvwxyz"
-	chainR, err := chain.ReadingFrom(strings.NewReader(input)).Then(ToUpper).Finally(RemoveXYZ)
+	chainR, err := chain.ReadingFrom(io.NopCloser(strings.NewReader(input))).
+		Then(ToUpper).
+		Finally(RemoveXYZ)
 	require.Nil(t, err)
 	b, err := ioutil.ReadAll(chainR)
 	require.Nil(t, err)
@@ -31,14 +35,14 @@ func TestReaderChainB(t *testing.T) {
 	assert.Equal(t, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", string(b))
 }
 
-func RemoveXYZ(w io.Reader) (io.Reader, error) {
+func RemoveXYZ(w io.ReadCloser) (io.ReadCloser, error) {
 	return removeXYZ{w}, nil
 }
 
-type removeXYZ struct{ io.Reader }
+type removeXYZ struct{ io.ReadCloser }
 
 func (r removeXYZ) Read(p []byte) (n int, err error) {
-	n, err = r.Reader.Read(p)
+	n, err = r.ReadCloser.Read(p)
 	for i := 0; i < n; i++ {
 		if p[i] >= 'x' && p[i] <= 'z' {
 			p[i] = '.'
@@ -47,14 +51,14 @@ func (r removeXYZ) Read(p []byte) (n int, err error) {
 	return
 }
 
-func ToUpper(w io.Reader) (io.Reader, error) {
+func ToUpper(w io.ReadCloser) (io.ReadCloser, error) {
 	return toUpper{w}, nil
 }
 
-type toUpper struct{ io.Reader }
+type toUpper struct{ io.ReadCloser }
 
 func (r toUpper) Read(p []byte) (n int, err error) {
-	n, err = r.Reader.Read(p)
+	n, err = r.ReadCloser.Read(p)
 	for i := 0; i < n; i++ {
 		if p[i] >= 'a' && p[i] <= 'z' {
 			p[i] -= 'a' - 'A'

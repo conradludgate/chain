@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,3 +17,9 @@ func (o OS) Open(name string) (io.ReadCloser, error) {
 }
 
 func (o OS) Close() error { return nil }
+
+func (o OS) Create(name string) (io.WriteCloser, error) {
+	path := filepath.Join(o.RootDir, name)
+	fmt.Println("open", path)
+	return os.Create(path)
+}

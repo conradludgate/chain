@@ -18,7 +18,7 @@ type WriterBuilder struct {
 // While this type only expects an io.Writer to be returned, it will
 // detect if the result is a Closer and make sure the
 // types Close function is run.
-type WriteChain func(io.Writer) (io.Writer, error)
+type WriteChain func(io.WriteCloser) (io.WriteCloser, error)
 
 // NewWriteBuilder creates a new WriteBuilder with the
 // given WriteChain being the first in the chain
@@ -35,40 +35,23 @@ func (wc *WriterBuilder) Then(next WriteChain) *WriterBuilder {
 	return wc
 }
 
-type writer struct {
-	io.Writer
-	closeStack
-}
-
 // WritingTo builds the chain. The resulting data from the chain is
 // written to the io.Writer provided.
 //
 // If w is a Closer type too, calling the returned writer's Close function
 // will also close w.
-func (wc *WriterBuilder) WritingTo(w io.Writer) (io.WriteCloser, error) {
-	var close closeStack = nil
-
-	if wc, ok := w.(io.WriteCloser); ok {
-		close = append(close, wc)
-	}
-
+func (wc *WriterBuilder) WritingTo(w io.WriteCloser) (io.WriteCloser, error) {
 	for i := len(wc.wcs) - 1; i >= 0; i-- {
-		var err error
-		w, err = wc.wcs[i](w)
+		newW, err := wc.wcs[i](w)
 		if err != nil {
-			close.Close()
+			w.Close()
 			return nil, err
 		}
 
-		if wc, ok := w.(io.WriteCloser); ok {
-			close = append(close, wc)
-		}
+		w = newW
 	}
 
-	return &writer{
-		Writer:     w,
-		closeStack: close,
-	}, nil
+	return w, nil
 }
 
 type WriteFSBuilder struct {
@@ -77,7 +60,7 @@ type WriteFSBuilder struct {
 	after *WriterBuilder
 }
 
-type WriteFSChain func(io.Writer) (WriteFS, error)
+type WriteFSChain func(io.WriteCloser) (WriteFS, error)
 
 func (wc *WriterBuilder) IntoFS(next WriteFSChain) *WriteFSBuilder {
 	return &WriteFSBuilder{
@@ -89,6 +72,7 @@ func (wc *WriterBuilder) IntoFS(next WriteFSChain) *WriteFSBuilder {
 
 func (wc *WriterBuilder) WritingToFS(fs WriteFS) WriteFS {
 	return &writeFs{
+		close: NopWriteCloser{},
 		first: wc,
 		fs:    fs,
 	}
@@ -99,7 +83,7 @@ func (wc *WriteFSBuilder) Then(next WriteChain) *WriteFSBuilder {
 	return wc
 }
 
-func (wc *WriteFSBuilder) WritingTo(w io.Writer) (WriteFS, error) {
+func (wc *WriteFSBuilder) WritingTo(w io.WriteCloser) (WriteFS, error) {
 	after, err := wc.after.WritingTo(w)
 	if err != nil {
 		return nil, err
@@ -145,4 +129,24 @@ func (fs *writeFs) Close() error {
 type WriteFS interface {
 	Create(path string) (io.WriteCloser, error)
 	io.Closer
+}
+
+type NopWriteCloser struct {
+	io.Writer
+}
+
+func (NopWriteCloser) Close() error { return nil }
+
+type WriteCloser2 struct {
+	io.WriteCloser
+	Closer io.Closer
+}
+
+func (wc WriteCloser2) Close() error {
+	err1 := wc.WriteCloser.Close()
+	err2 := wc.Closer.Close()
+	if err1 != nil {
+		return err1
+	}
+	return err2
 }

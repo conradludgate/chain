@@ -17,7 +17,7 @@ func (c GZIPConfig) WithLevel(level int) GZIPConfig {
 	return c
 }
 
-func (c GZIPConfig) Compress(w io.Writer) (io.Writer, error) {
+func (c GZIPConfig) Compress(w io.WriteCloser) (io.WriteCloser, error) {
 	gw, err := gzip.NewWriterLevel(w, c.level-1)
 	if err != nil {
 		return nil, err
@@ -26,6 +26,6 @@ func (c GZIPConfig) Compress(w io.Writer) (io.Writer, error) {
 	return gw, nil
 }
 
-func (c GZIPConfig) Decompress(r io.Reader) (io.Reader, error) {
+func (c GZIPConfig) Decompress(r io.ReadCloser) (io.ReadCloser, error) {
 	return gzip.NewReader(r)
 }

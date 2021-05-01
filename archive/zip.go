@@ -15,7 +15,7 @@ type ZipConfig struct {
 	Compressor zip.Compressor
 }
 
-func (cfg ZipConfig) FSWriter(w io.Writer) (chain.WriteFS, error) {
+func (cfg ZipConfig) FSWriter(w io.WriteCloser) (chain.WriteFS, error) {
 	zipW := zip.NewWriter(w)
 	zipW.SetOffset(cfg.Offset)
 	if cfg.Compressor != nil {
@@ -35,7 +35,7 @@ func (fs zipFSWriter) Create(name string) (io.WriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return nopWriteCloser{f}, nil
+	return chain.NopWriteCloser{Writer: f}, nil
 }
 
 func (fs zipFSWriter) Close() error {
@@ -47,13 +47,7 @@ func (fs zipFSWriter) Close() error {
 	return err1
 }
 
-type nopWriteCloser struct {
-	io.Writer
-}
-
-func (nopWriteCloser) Close() error { return nil }
-
-func (cfg ZipConfig) FSReader(r io.Reader) (chain.ReadFS, error) {
+func (cfg ZipConfig) FSReader(r io.ReadCloser) (chain.ReadFS, error) {
 	var ra io.ReaderAt
 	var size int64
 	if rs, ok := r.(readerStat); ok {
