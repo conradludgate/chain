@@ -95,7 +95,7 @@ func (chain *ReaderFSBuilder) Open(name string) *ReaderBuilder {
 	}
 	return &ReaderBuilder{r: reader{
 		Reader:     r,
-		closeStack: closeStack{fs, r},
+		closeStack: closeStack{fs.fs, fs.Closer, r},
 	}}
 }
 
@@ -108,7 +108,7 @@ func (chain *ReaderFSBuilder) Finally(next ReadChain) (ReadFS, error) {
 	return chain.Then(next).build()
 }
 
-func (chain *ReaderFSBuilder) build() (ReadFS, error) {
+func (chain *ReaderFSBuilder) build() (*readFS, error) {
 	if chain.first.err != nil {
 		return nil, chain.first.err
 	}
