@@ -87,6 +87,13 @@ func (wc *WriterBuilder) IntoFS(next WriteFSChain) *WriteFSBuilder {
 	}
 }
 
+func (wc *WriterBuilder) WritingToFS(fs WriteFS) WriteFS {
+	return &writeFs{
+		first: wc,
+		fs:    fs,
+	}
+}
+
 func (wc *WriteFSBuilder) Then(next WriteChain) *WriteFSBuilder {
 	wc.after.Then(next)
 	return wc

@@ -67,6 +67,14 @@ type ReaderFSBuilder struct {
 	after []ReadChain
 }
 
+func ReadingFromFS(fs ReadFS) *ReaderFSBuilder {
+	return &ReaderFSBuilder{
+		first: &ReaderBuilder{},
+		fs:    func(io.Reader) (ReadFS, error) { return fs, nil },
+		after: nil,
+	}
+}
+
 func (chain *ReaderBuilder) AsFS(next ReadFSChain) *ReaderFSBuilder {
 	return &ReaderFSBuilder{
 		first: chain,

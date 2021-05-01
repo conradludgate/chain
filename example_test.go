@@ -2,14 +2,17 @@ package chain_test
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/conradludgate/chain"
 	"github.com/conradludgate/chain/archive"
 	"github.com/conradludgate/chain/cipher"
 	"github.com/conradludgate/chain/compress"
+	"github.com/conradludgate/chain/encoding"
 )
 
 func ExampleNewWriteBuilder() {
@@ -69,4 +72,28 @@ func ExampleWriterBuilder_IntoFS() {
 	fmt.Println(string(b))
 	// Output: hello world
 
+}
+
+func ExampleReaderBuilder_AsFS() {
+	f, _ := os.Open("./example/archive.zip")
+	zip := archive.ZipConfig{}
+	b64 := encoding.Base64Config{Encoding: base64.RawStdEncoding}
+
+	fs, _ := chain.ReadingFrom(f).AsFS(zip.FSReader).Finally(b64.Decode)
+	defer fs.Close()
+
+	r, _ := fs.Open("hello.txt")
+	defer r.Close()
+	io.Copy(os.Stdout, r)
+}
+
+func ExampleReadingFromFS() {
+	b64 := encoding.Base64Config{Encoding: base64.RawStdEncoding}
+
+	fs, _ := chain.ReadingFromFS(chain.OS{RootDir: "./example"}).Finally(b64.Decode)
+	defer fs.Close()
+
+	r, _ := fs.Open("hello.txt")
+	defer r.Close()
+	io.Copy(os.Stdout, r)
 }
