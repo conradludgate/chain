@@ -14,18 +14,19 @@ import (
 func Example() {
 	key, _ := hex.DecodeString("6368616e676520746869732070617373")
 	aes := cipher.AESConfig{Key: key}
+	gzip := compress.GZIPConfig{}
 
 	output := bytes.NewBuffer(nil)
 
 	w, _ := chain.NewWriteBuilder(aes.Encrypt).
-		Then(compress.GZIPCompress).
+		Then(gzip.Compress).
 		WritingTo(output)
 
 	io.WriteString(w, "hello world")
 	w.Close()
 
 	r, _ := chain.ReadingFrom(output).
-		Then(compress.GZIPDecompress).
+		Then(gzip.Decompress).
 		Finally(aes.Decrypt)
 
 	b, _ := io.ReadAll(r)
