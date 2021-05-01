@@ -83,17 +83,35 @@ func (chain *ReaderBuilder) AsFS(next ReadFSChain) *ReaderFSBuilder {
 	}
 }
 
+func (chain *ReaderFSBuilder) Open(name string) *ReaderBuilder {
+	fs, err := chain.build()
+	if err != nil {
+		return &ReaderBuilder{err: err}
+	}
+	r, err := fs.Open(name)
+	if err != nil {
+		fs.Close()
+		return &ReaderBuilder{err: err}
+	}
+	return &ReaderBuilder{r: reader{
+		Reader:     r,
+		closeStack: closeStack{fs, r},
+	}}
+}
+
 func (chain *ReaderFSBuilder) Then(next ReadChain) *ReaderFSBuilder {
 	chain.after = append(chain.after, next)
 	return chain
 }
 
 func (chain *ReaderFSBuilder) Finally(next ReadChain) (ReadFS, error) {
+	return chain.Then(next).build()
+}
+
+func (chain *ReaderFSBuilder) build() (ReadFS, error) {
 	if chain.first.err != nil {
 		return nil, chain.first.err
 	}
-
-	chain.after = append(chain.after, next)
 
 	fs, err := chain.fs(chain.first.r)
 	if err != nil {

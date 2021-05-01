@@ -75,11 +75,13 @@ func ExampleWriterBuilder_IntoFS() {
 }
 
 func ExampleReaderBuilder_AsFS() {
-	f, _ := os.Open("./example/archive.zip")
 	zip := archive.ZipConfig{}
 	b64 := encoding.Base64Config{Encoding: base64.RawStdEncoding}
 
-	fs, _ := chain.ReadingFrom(f).AsFS(zip.FSReader).Finally(b64.Decode)
+	fs, _ := chain.ReadingFromFS(chain.OS{RootDir: "./example"}).
+		Open("archive.zip").
+		AsFS(zip.FSReader).
+		Finally(b64.Decode)
 	defer fs.Close()
 
 	r, _ := fs.Open("hello.txt")
