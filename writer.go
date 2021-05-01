@@ -70,3 +70,72 @@ func (wc *WriterBuilder) WritingTo(w io.Writer) (io.WriteCloser, error) {
 		closeStack: close,
 	}, nil
 }
+
+type WriteFSBuilder struct {
+	first *WriterBuilder
+	fs    WriteFSChain
+	after *WriterBuilder
+}
+
+type WriteFSChain func(io.Writer) (WriteFS, error)
+
+func (wc *WriterBuilder) IntoFS(next WriteFSChain) *WriteFSBuilder {
+	return &WriteFSBuilder{
+		first: wc,
+		fs:    next,
+		after: &WriterBuilder{},
+	}
+}
+
+func (wc *WriteFSBuilder) Then(next WriteChain) *WriteFSBuilder {
+	wc.after.Then(next)
+	return wc
+}
+
+func (wc *WriteFSBuilder) WritingTo(w io.Writer) (WriteFS, error) {
+	after, err := wc.after.WritingTo(w)
+	if err != nil {
+		return nil, err
+	}
+
+	fs, err := wc.fs(after)
+	if err != nil {
+		after.Close()
+		return nil, err
+	}
+
+	return &writeFs{
+		first: wc.first,
+		fs:    fs,
+		close: after,
+	}, nil
+}
+
+type writeFs struct {
+	close io.Closer
+	fs    WriteFS
+	first *WriterBuilder
+}
+
+func (fs *writeFs) Create(path string) (io.WriteCloser, error) {
+	w, err := fs.fs.Create(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return fs.first.WritingTo(w)
+}
+
+func (fs *writeFs) Close() error {
+	err1 := fs.fs.Close()
+	err2 := fs.close.Close()
+	if err1 != nil {
+		return err1
+	}
+	return err2
+}
+
+type WriteFS interface {
+	Create(path string) (io.WriteCloser, error)
+	io.Closer
+}

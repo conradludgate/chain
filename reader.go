@@ -59,3 +59,70 @@ func (chain *ReaderBuilder) Finally(next ReadChain) (io.ReadCloser, error) {
 	chain.Then(next)
 	return chain.r, chain.err
 }
+
+type ReadFSChain func(io.Reader) (ReadFS, error)
+type ReaderFSBuilder struct {
+	first *ReaderBuilder
+	fs    ReadFSChain
+	after []ReadChain
+}
+
+func (chain *ReaderBuilder) AsFS(next ReadFSChain) *ReaderFSBuilder {
+	return &ReaderFSBuilder{
+		first: chain,
+		fs:    next,
+		after: nil,
+	}
+}
+
+func (chain *ReaderFSBuilder) Then(next ReadChain) *ReaderFSBuilder {
+	chain.after = append(chain.after, next)
+	return chain
+}
+
+func (chain *ReaderFSBuilder) Finally(next ReadChain) (ReadFS, error) {
+	if chain.first.err != nil {
+		return nil, chain.first.err
+	}
+
+	chain.after = append(chain.after, next)
+
+	fs, err := chain.fs(chain.first.r)
+	if err != nil {
+		return nil, err
+	}
+
+	return &readFS{
+		Closer: chain.first.r,
+		fs:     fs,
+		after:  chain.after,
+	}, nil
+}
+
+type readFS struct {
+	io.Closer
+	fs    ReadFS
+	after []ReadChain
+}
+
+func (fs *readFS) Open(path string) (io.ReadCloser, error) {
+	r, err := fs.fs.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	builder := ReadingFrom(r)
+	for _, then := range fs.after {
+		builder.Then(then)
+	}
+	if builder.err != nil {
+		return nil, builder.err
+	}
+
+	return builder.r, nil
+}
+
+type ReadFS interface {
+	Open(path string) (io.ReadCloser, error)
+	io.Closer
+}
