@@ -14,7 +14,7 @@ func TestWriterChainA(t *testing.T) {
 	output := bytes.NewBuffer(nil)
 	input := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-	chainW, err := chain.W(RemoveABC).Then(ToLower).WritingTo(output)
+	chainW, err := chain.NewWriteBuilder(RemoveABC).Then(ToLower).WritingTo(output)
 	require.Nil(t, err)
 
 	n, err := io.WriteString(chainW, input)
@@ -28,7 +28,7 @@ func TestWriterChainB(t *testing.T) {
 	output := bytes.NewBuffer(nil)
 	input := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-	chainW, err := chain.W(ToLower).Then(RemoveABC).WritingTo(output)
+	chainW, err := chain.NewWriteBuilder(ToLower).Then(RemoveABC).WritingTo(output)
 	require.Nil(t, err)
 
 	n, err := io.WriteString(chainW, input)

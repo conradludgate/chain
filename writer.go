@@ -4,30 +4,48 @@ import (
 	"io"
 )
 
-type WriteChain struct {
-	wcs []WriteChainer
+// WriterBuilder lets you build a chain of io.Writers
+// in a more natural way
+type WriterBuilder struct {
+	wcs []WriteChain
 }
 
-type WriteChainer func(io.Writer) (io.Writer, error)
-type WriteChainEnder func() (io.Writer, error)
+// WriteChain represents a common pattern in go packages.
+// For examples, see:
+// https://pkg.go.dev/compress/gzip#NewWriter
+// https://pkg.go.dev/golang.org/x/crypto/openpgp#Encrypt
+//
+// While this type only expects an io.Writer to be returned, it will
+// detect if the result is a Closer and make sure the
+// types Close function is run.
+type WriteChain func(io.Writer) (io.Writer, error)
 
-func W(first WriteChainer) *WriteChain {
-	return &WriteChain{
-		wcs: []WriteChainer{first},
+// NewWriteBuilder creates a new WriteBuilder with the
+// given WriteChain being the first in the chain
+func NewWriteBuilder(first WriteChain) *WriterBuilder {
+	return &WriterBuilder{
+		wcs: []WriteChain{first},
 	}
 }
 
-func (wc *WriteChain) Then(next WriteChainer) *WriteChain {
+// Then adds the next WriteChain to the current builder chain.
+// Returns self
+func (wc *WriterBuilder) Then(next WriteChain) *WriterBuilder {
 	wc.wcs = append(wc.wcs, next)
 	return wc
 }
 
-type ChainWriteCloser struct {
+type writer struct {
 	io.Writer
 	closeStack
 }
 
-func (wc *WriteChain) WritingTo(w io.Writer) (*ChainWriteCloser, error) {
+// WritingTo builds the chain. The resulting data from the chain is
+// written to the io.Writer provided.
+//
+// If w is a Closer type too, calling the returned writer's Close function
+// will also close w.
+func (wc *WriterBuilder) WritingTo(w io.Writer) (io.WriteCloser, error) {
 	var close closeStack = nil
 
 	if wc, ok := w.(io.WriteCloser); ok {
@@ -47,7 +65,7 @@ func (wc *WriteChain) WritingTo(w io.Writer) (*ChainWriteCloser, error) {
 		}
 	}
 
-	return &ChainWriteCloser{
+	return &writer{
 		Writer:     w,
 		closeStack: close,
 	}, nil

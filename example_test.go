@@ -17,7 +17,7 @@ func Example() {
 
 	output := bytes.NewBuffer(nil)
 
-	w, _ := chain.W(aes.Encrypt).
+	w, _ := chain.NewWriteBuilder(aes.Encrypt).
 		Then(compress.GZIPCompress).
 		WritingTo(output)
 
