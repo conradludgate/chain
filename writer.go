@@ -59,7 +59,7 @@ type WriterFileBuilder struct {
 	name    string
 }
 
-func (wc *WriterBuilder) Open(name string) *WriterFileBuilder {
+func (wc *WriterBuilder) Create(name string) *WriterFileBuilder {
 	return &WriterFileBuilder{
 		builder: wc,
 		name:    name,

@@ -46,7 +46,7 @@ func ExampleWriterBuilder_IntoFS() {
 	output := bytes.NewBuffer(nil)
 
 	w, _ := chain.NewWriteBuilder(aes.Encrypt).
-		Open("hello.txt").
+		Create("hello.txt").
 		InFS(zip.FSWriter).
 		WritingTo(chain.NopWriteCloser{Writer: output})
 

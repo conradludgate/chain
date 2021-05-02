@@ -82,9 +82,9 @@ func TestInFS(t *testing.T) {
 	zip := archive.ZipConfig{}
 
 	w, err := chain.NewWriteBuilder(aes.Encrypt).
-		Open("hello.txt").
+		Create("hello.txt").
 		InFS(zip.FSWriter).
-		Open("hello.zip").
+		Create("hello.zip").
 		WritingToFS(chain.OS{RootDir: "."})
 	require.Nil(t, err)
 
