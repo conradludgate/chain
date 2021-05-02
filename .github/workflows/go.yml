@@ -27,3 +27,6 @@ jobs:
       uses: codecov/codecov-action@v1
       with:
         fail_ci_if_error: true
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v2.5.2
