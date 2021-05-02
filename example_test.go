@@ -62,7 +62,6 @@ func ExampleWriterBuilder_IntoFS() {
 	r.Close()
 
 	// Output: hello world
-
 }
 
 func ExampleReaderBuilder_AsFS() {

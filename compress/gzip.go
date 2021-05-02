@@ -10,14 +10,14 @@ type GZIPConfig struct {
 	level  int
 }
 
-func (c GZIPConfig) WithLevel(level int) GZIPConfig {
+func (c *GZIPConfig) WithLevel(level int) *GZIPConfig {
 	// Annoyingly, 'gzip.DefaultCompression` is the contant -1... not 0
 	// Go ints default to 0 so adding 1 makes them inline
 	c.level = level + 1
 	return c
 }
 
-func (c GZIPConfig) Compress(w io.WriteCloser) (io.WriteCloser, error) {
+func (c *GZIPConfig) Compress(w io.WriteCloser) (io.WriteCloser, error) {
 	gw, err := gzip.NewWriterLevel(w, c.level-1)
 	if err != nil {
 		return nil, err
@@ -26,6 +26,6 @@ func (c GZIPConfig) Compress(w io.WriteCloser) (io.WriteCloser, error) {
 	return gw, nil
 }
 
-func (c GZIPConfig) Decompress(r io.ReadCloser) (io.ReadCloser, error) {
+func (c *GZIPConfig) Decompress(r io.ReadCloser) (io.ReadCloser, error) {
 	return gzip.NewReader(r)
 }

@@ -10,34 +10,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const inputUpper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
 func TestWriterChainA(t *testing.T) {
 	output := bytes.NewBuffer(nil)
-	input := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 	chainW, err := chain.NewWriteBuilder(RemoveABC).
 		Then(ToLower).
 		WritingTo(chain.NopWriteCloser{Writer: output})
 	require.Nil(t, err)
 
-	n, err := io.WriteString(chainW, input)
+	n, err := io.WriteString(chainW, inputUpper)
 	require.Nil(t, err)
-	assert.Equal(t, len(input), n)
+	assert.Equal(t, len(inputUpper), n)
 
 	assert.Equal(t, "...defghijklmnopqrstuvwxyz", output.String())
 }
 
 func TestWriterChainB(t *testing.T) {
 	output := bytes.NewBuffer(nil)
-	input := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 	chainW, err := chain.NewWriteBuilder(ToLower).
 		Then(RemoveABC).
 		WritingTo(chain.NopWriteCloser{Writer: output})
 	require.Nil(t, err)
 
-	n, err := io.WriteString(chainW, input)
+	n, err := io.WriteString(chainW, inputUpper)
 	require.Nil(t, err)
-	assert.Equal(t, len(input), n)
+	assert.Equal(t, len(inputUpper), n)
 
 	assert.Equal(t, "abcdefghijklmnopqrstuvwxyz", output.String())
 }

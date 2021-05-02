@@ -30,17 +30,17 @@ type zipFSWriter struct {
 	comment string
 }
 
-func (fs zipFSWriter) Create(name string) (io.WriteCloser, error) {
-	f, err := fs.zipW.Create(name)
+func (zipfs zipFSWriter) Create(name string) (io.WriteCloser, error) {
+	f, err := zipfs.zipW.Create(name)
 	if err != nil {
 		return nil, err
 	}
 	return chain.NopWriteCloser{Writer: f}, nil
 }
 
-func (fs zipFSWriter) Close() error {
-	err1 := fs.zipW.SetComment(fs.comment)
-	err2 := fs.zipW.Close()
+func (zipfs zipFSWriter) Close() error {
+	err1 := zipfs.zipW.SetComment(zipfs.comment)
+	err2 := zipfs.zipW.Close()
 	if err2 != nil {
 		return err2
 	}

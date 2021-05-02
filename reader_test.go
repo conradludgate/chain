@@ -11,9 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const inputLower = "abcdefghijklmnopqrstuvwxyz"
+
 func TestReaderChainA(t *testing.T) {
-	input := "abcdefghijklmnopqrstuvwxyz"
-	chainR, err := chain.ReadingFrom(io.NopCloser(strings.NewReader(input))).
+	chainR, err := chain.ReadingFrom(io.NopCloser(strings.NewReader(inputLower))).
 		Then(RemoveXYZ).
 		Finally(ToUpper)
 	require.Nil(t, err)
@@ -24,8 +25,7 @@ func TestReaderChainA(t *testing.T) {
 }
 
 func TestReaderChainB(t *testing.T) {
-	input := "abcdefghijklmnopqrstuvwxyz"
-	chainR, err := chain.ReadingFrom(io.NopCloser(strings.NewReader(input))).
+	chainR, err := chain.ReadingFrom(io.NopCloser(strings.NewReader(inputLower))).
 		Then(ToUpper).
 		Finally(RemoveXYZ)
 	require.Nil(t, err)
