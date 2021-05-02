@@ -74,3 +74,48 @@ func TestWritingToFS(t *testing.T) {
 	err = wfs.Close()
 	require.Nil(t, err)
 }
+
+func TestInFS(t *testing.T) {
+	key, err := hex.DecodeString("6368616e676520746869732070617373")
+	require.Nil(t, err)
+	aes := cipher.AESConfig{Key: key}
+	zip := archive.ZipConfig{}
+
+	w, err := chain.NewWriteBuilder(aes.Encrypt).
+		Open("hello.txt").
+		InFS(zip.FSWriter).
+		Open("hello.zip").
+		WritingToFS(chain.OS{RootDir: "."})
+	require.Nil(t, err)
+
+	_, err = io.WriteString(w, "hello world")
+	require.Nil(t, err)
+	err = w.Close()
+	require.Nil(t, err)
+}
+
+func TestIntoFS(t *testing.T) {
+	key, err := hex.DecodeString("6368616e676520746869732070617373")
+	require.Nil(t, err)
+	aes := cipher.AESConfig{Key: key}
+	zip := archive.ZipConfig{}
+	b64 := encoding.Base64Config{Encoding: base64.RawStdEncoding}
+
+	output := bytes.NewBuffer(nil)
+
+	wfs, err := chain.NewWriteBuilder(aes.Encrypt).
+		IntoFS(zip.FSWriter).
+		Then(b64.Encode).
+		WritingTo(chain.NopWriteCloser{Writer: output})
+	require.Nil(t, err)
+
+	w, err := wfs.Create("hello.txt")
+	require.Nil(t, err)
+
+	_, err = io.WriteString(w, "hello world")
+	require.Nil(t, err)
+	err = w.Close()
+	require.Nil(t, err)
+	err = wfs.Close()
+	require.Nil(t, err)
+}

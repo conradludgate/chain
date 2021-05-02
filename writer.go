@@ -85,6 +85,18 @@ func (builder *WriterFileBuilder) InFS(next WriteFSChain) *WriterBuilder {
 		}, nil
 	})
 }
+func (builder *WriterFileBuilder) WritingToFS(fs WriteFS) (io.WriteCloser, error) {
+	f, err := fs.Create(builder.name)
+	if err != nil {
+		fs.Close()
+		return nil, err
+	}
+
+	return builder.builder.WritingTo(WriteCloser2{
+		WriteCloser: f,
+		Closer:      fs,
+	})
+}
 
 type WriteFSBuilder struct {
 	first *WriterBuilder
