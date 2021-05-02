@@ -39,13 +39,8 @@ func TestReaderClose(t *testing.T) {
 	var chainClosed bool
 	var readerClosed bool
 
-	r, err := ReadingFrom(readCloser{
-		ReadCloser: io.NopCloser(strings.NewReader("hello world")),
-		closed:     &readerClosed,
-	}).
-		Finally(func(r io.ReadCloser) (io.ReadCloser, error) {
-			return readCloser{ReadCloser: r, closed: &chainClosed}, nil
-		})
+	r, err := ReadingFrom(nopReadCloser(strings.NewReader("hello world"), &readerClosed)).
+		Finally(nopReadChain(&chainClosed))
 	require.Nil(t, err)
 	err = r.Close()
 	require.Nil(t, err)
@@ -56,12 +51,8 @@ func TestReaderClose(t *testing.T) {
 func TestReaderClose_ErrorClosing(t *testing.T) {
 	var chainClosed bool
 
-	r, err := ReadingFrom(readCloser{
-		ReadCloser: io.NopCloser(strings.NewReader("hello world")),
-	}).
-		Finally(func(r io.ReadCloser) (io.ReadCloser, error) {
-			return readCloser{ReadCloser: r, closed: &chainClosed}, nil
-		})
+	r, err := ReadingFrom(nopReadCloser(strings.NewReader("hello world"), nil)).
+		Finally(nopReadChain(&chainClosed))
 	require.Nil(t, err)
 	err = r.Close()
 	assert.EqualError(t, err, "Error 2")
@@ -71,13 +62,8 @@ func TestReaderClose_ErrorClosing(t *testing.T) {
 func TestReaderClose_ErrorChain(t *testing.T) {
 	var readerClosed bool
 
-	_, err := ReadingFrom(readCloser{
-		ReadCloser: io.NopCloser(strings.NewReader("hello world")),
-		closed:     &readerClosed,
-	}).
-		Finally(func(r io.ReadCloser) (io.ReadCloser, error) {
-			return nil, Err1
-		})
+	_, err := ReadingFrom(nopReadCloser(strings.NewReader("hello world"), &readerClosed)).
+		Finally(readChainError(Err1))
 	assert.EqualError(t, err, "Error 1")
 	assert.True(t, readerClosed)
 }
@@ -86,12 +72,8 @@ func TestWriterClose(t *testing.T) {
 	var chainClosed bool
 	var writerClosed bool
 
-	w, err := NewWriteBuilder(func(w io.WriteCloser) (io.WriteCloser, error) {
-		return writeCloser{WriteCloser: w, closed: &chainClosed}, nil
-	}).WritingTo(writeCloser{
-		WriteCloser: NopWriteCloser{Writer: bytes.NewBuffer(nil)},
-		closed:      &writerClosed,
-	})
+	w, err := NewWriteBuilder(nopWriteChain(&chainClosed)).
+		WritingTo(nopWriteCloser(bytes.NewBuffer(nil), &writerClosed))
 	require.Nil(t, err)
 	err = w.Close()
 	require.Nil(t, err)
@@ -102,12 +84,8 @@ func TestWriterClose(t *testing.T) {
 func TestWriterClose_ErrorChain(t *testing.T) {
 	var writerClosed bool
 
-	_, err := NewWriteBuilder(func(w io.WriteCloser) (io.WriteCloser, error) {
-		return nil, Err1
-	}).WritingTo(writeCloser{
-		WriteCloser: NopWriteCloser{Writer: bytes.NewBuffer(nil)},
-		closed:      &writerClosed,
-	})
+	_, err := NewWriteBuilder(writeChainError(Err1)).
+		WritingTo(nopWriteCloser(bytes.NewBuffer(nil), &writerClosed))
 	assert.EqualError(t, err, "Error 1")
 	assert.True(t, writerClosed)
 }
@@ -115,15 +93,50 @@ func TestWriterClose_ErrorChain(t *testing.T) {
 func TestWriterClose_ErrorClosing(t *testing.T) {
 	var chainClosed bool
 
-	w, err := NewWriteBuilder(func(w io.WriteCloser) (io.WriteCloser, error) {
-		return writeCloser{WriteCloser: w, closed: &chainClosed}, nil
-	}).WritingTo(writeCloser{
-		WriteCloser: NopWriteCloser{Writer: bytes.NewBuffer(nil)},
-	})
+	w, err := NewWriteBuilder(nopWriteChain(&chainClosed)).
+		WritingTo(nopWriteCloser(bytes.NewBuffer(nil), nil))
 	require.Nil(t, err)
 	err = w.Close()
 	assert.EqualError(t, err, "Error 2")
 	assert.True(t, chainClosed)
+}
+
+func nopReadChain(closed *bool) ReadChain {
+	return func(r io.ReadCloser) (io.ReadCloser, error) {
+		return readCloser{ReadCloser: r, closed: closed}, nil
+	}
+}
+
+func readChainError(err error) ReadChain {
+	return func(r io.ReadCloser) (io.ReadCloser, error) {
+		return nil, err
+	}
+}
+
+func nopReadCloser(r io.Reader, closed *bool) io.ReadCloser {
+	return readCloser{
+		ReadCloser: io.NopCloser(r),
+		closed:     closed,
+	}
+}
+
+func nopWriteChain(closed *bool) WriteChain {
+	return func(w io.WriteCloser) (io.WriteCloser, error) {
+		return writeCloser{WriteCloser: w, closed: closed}, nil
+	}
+}
+
+func writeChainError(err error) WriteChain {
+	return func(w io.WriteCloser) (io.WriteCloser, error) {
+		return nil, err
+	}
+}
+
+func nopWriteCloser(w io.Writer, closed *bool) io.WriteCloser {
+	return writeCloser{
+		WriteCloser: NopWriteCloser{Writer: w},
+		closed:      closed,
+	}
 }
 
 type readCloser struct {

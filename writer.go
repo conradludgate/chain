@@ -54,6 +54,38 @@ func (wc *WriterBuilder) WritingTo(w io.WriteCloser) (io.WriteCloser, error) {
 	return w, nil
 }
 
+type WriterFileBuilder struct {
+	builder *WriterBuilder
+	name    string
+}
+
+func (wc *WriterBuilder) Open(name string) *WriterFileBuilder {
+	return &WriterFileBuilder{
+		builder: wc,
+		name:    name,
+	}
+}
+
+func (builder *WriterFileBuilder) InFS(next WriteFSChain) *WriterBuilder {
+	return builder.builder.Then(func(w io.WriteCloser) (io.WriteCloser, error) {
+		fs, err := next(w)
+		if err != nil {
+			return nil, err
+		}
+
+		f, err := fs.Create(builder.name)
+		if err != nil {
+			fs.Close()
+			return nil, err
+		}
+
+		return WriteCloser2{
+			WriteCloser: f,
+			Closer:      fs,
+		}, nil
+	})
+}
+
 type WriteFSBuilder struct {
 	first *WriterBuilder
 	fs    WriteFSChain

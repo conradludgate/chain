@@ -48,15 +48,13 @@ func ExampleWriterBuilder_IntoFS() {
 
 	output := bytes.NewBuffer(nil)
 
-	wfs, _ := chain.NewWriteBuilder(aes.Encrypt).
-		IntoFS(zip.FSWriter).
+	w, _ := chain.NewWriteBuilder(aes.Encrypt).
+		Open("hello.txt").
+		InFS(zip.FSWriter).
 		WritingTo(chain.NopWriteCloser{Writer: output})
-
-	w, _ := wfs.Create("hello.txt")
 
 	io.WriteString(w, "hello world")
 	w.Close()
-	wfs.Close()
 
 	r, _ := chain.ReadingFrom(io.NopCloser(output)).
 		AsFS(zip.FSReader).
