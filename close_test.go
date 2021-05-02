@@ -2,7 +2,6 @@ package chain
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -13,27 +12,14 @@ import (
 
 type ErrorString1 string
 type ErrorString2 string
-type ErrorString3 string
 
 func (s ErrorString1) Error() string { return string(s) }
 func (s ErrorString2) Error() string { return string(s) }
-func (s ErrorString3) Error() string { return string(s) }
 
 var (
 	Err1 = ErrorString1("Error 1")
 	Err2 = ErrorString2("Error 2")
-	Err3 = errors.New("Error 3")
 )
-
-type Closer0 struct{}
-type Closer1 struct{}
-type Closer2 struct{}
-type Closer3 struct{}
-
-func (Closer0) Close() error { return nil }
-func (Closer1) Close() error { return Err1 }
-func (Closer2) Close() error { return Err2 }
-func (Closer3) Close() error { return Err3 }
 
 func TestReaderClose(t *testing.T) {
 	var chainClosed bool
